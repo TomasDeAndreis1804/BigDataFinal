@@ -112,6 +112,3 @@ jobs:
           source venv/bin/activate  # Activarlo
           cd parser
           zappa status devParser
-
-
-
