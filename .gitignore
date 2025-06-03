@@ -1,0 +1,78 @@
+#Virtual environment
+venv/
+.venv/
+env/
+.env/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.python-version
+env/
+venv/
+instance/
+eggs/
+.egg-info/
+develop-eggs/
+parts/
+bin/
+lib/
+lib64/
+sdist/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.whl
+build/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+dist/
+
+# Zappa specific
+.zappa-credentials.json
+.zappa-cache/
+log.txt
+error.log
+
+# OS Specific files (you might not need all of these)
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Editors and IDEs
+.idea/
+.project
+.classpath
+.settings/
+*.log
+*.iml
+*.ipnb
+*.ipynb_checkpoints/
+nbpresent.html
+_build/
+.vscode/
+
+# Packages and dependencies
+requirements.txt  # Consider if you want to ignore this, usually you don't
+package-lock.json
+yarn.lock
+node_modules/
+
+# Serverless Framework (if you're using it alongside Zappa)
+.serverless/
+
+# Other temporary files
+*.swp
+*.swo
+*.bak
+*.tmp
