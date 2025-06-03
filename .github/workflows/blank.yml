@@ -8,54 +8,78 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
 
+  setup:
+    name: 🔧 Setup environment
+    runs-on: ubuntu-latest
     steps:
-      - name: 📥 Checkout code
+      - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: 🐍 Set up Python 3.10
+      - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
 
-      - name: 📦 Create and activate virtual environment
+      - name: Create virtual environment
         run: |
           python -m venv venv
           source venv/bin/activate
 
-      - name: ⬆️ Upgrade pip and wheel
+      - name: Upgrade pip and install dependencies
         run: |
           source venv/bin/activate
           python -m pip install --upgrade pip wheel
-
-      - name: 📜 Install setuptools (compatible)
-        run: |
-          source venv/bin/activate
           pip install "setuptools<58.0.0"
+          pip install -r requirements.txt
+          pip install "moto<5.0" awscli zappa pytest requests-mock
 
-      - name: 📦 Install project requirements
+  test:
+    name: 🧪 Run tests
+    runs-on: ubuntu-latest
+    needs: setup
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Recreate environment & test
         run: |
+          python -m venv venv
           source venv/bin/activate
           pip install -r requirements.txt
-
-      - name: 📦 Install deployment tools
-        run: |
-          source venv/bin/activate
-          pip install "moto<5.0" awscli zappa
-
-      - name: 🧪 Install test dependencies
-        run: |
-          source venv/bin/activate
           pip install pytest requests-mock
-
-      - name: ✅ Run unit tests with pytest
-        run: |
-          source venv/bin/activate
           PYTHONPATH=$(pwd) pytest tests/
 
-      - name: 🔐 Configure AWS Credentials
+  deploy-scraper:
+    name: 🚀 Deploy Scraper
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies & deploy scraper
+        run: |
+          python -m venv venv
+          source venv/bin/activate
+          pip install -r requirements.txt
+          pip install awscli zappa "setuptools<58.0.0"
+          cd scraper
+          zappa update devScraper
+
+      - name: Check deployment status
+        run: |
+          source venv/bin/activate
+          cd scraper
+          zappa status devScraper
+
+      - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -63,31 +87,36 @@ jobs:
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: us-east-1
 
-      - name: 📂 List S3 buckets (check AWS access)
-        run: |
-          source venv/bin/activate
-          aws s3 ls
+  deploy-parser:
+    name: 🚀 Deploy Parser
+    runs-on: ubuntu-latest
+    needs: deploy-scraper
+    steps:
+      - uses: actions/checkout@v3
 
-      - name: 🚀 Deploy `scraper` with Zappa
-        run: |
-          source venv/bin/activate
-          cd scraper
-          zappa update devScraper
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
 
-      - name: 📊 Check `scraper` deployment status
+      - name: Install dependencies & deploy parser
         run: |
+          python -m venv venv
           source venv/bin/activate
-          cd scraper
-          zappa status devScraper
-
-      - name: 🚀 Deploy `parser` with Zappa
-        run: |
-          source venv/bin/activate
+          pip install -r requirements.txt
+          pip install awscli zappa "setuptools<58.0.0"
           cd parser
           zappa update devParser
 
-      - name: 📊 Check `parser` deployment status
+      - name: Check deployment status
         run: |
           source venv/bin/activate
           cd parser
           zappa status devParser
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: us-east-1
