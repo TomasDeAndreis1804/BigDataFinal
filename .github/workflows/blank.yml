@@ -1,52 +1,41 @@
-name: CI/CD Pipeline
+name: CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [ "main" ]
   pull_request:
-    branches:
-      - main
+    branches: [ "main" ]
+  workflow_dispatch:
 
 jobs:
-  lint:
-    name: Código Limpio (Flake8)
+  build:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout del código
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-      - name: Instalar dependencias
-        run: pip install flake8
-
-      #- name: Revisar calidad del código con Flake8
-       # run: flake8 --max-line-length=180
-
-  #test:
-    #name: Pruebas Unitarias (pytest)
-    #runs-on: ubuntu-latest
-    #needs: lint
-    #steps:
-      #- name: Checkout del código
-        #uses: actions/checkout@v3
-
-      - name: Configurar Python
-        uses: actions/setup-python@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
           python-version: '3.10'
 
-      - name: Instalar dependencias y configurar entorno virtual
+      - name: Install dependencies
         run: |
           python -m venv venv
-          venv/bin/pip install --upgrade pip wheel
-          venv/bin/pip install "setuptools<58.0.0"
-          venv/bin/pip install -r requirements.txt
-          venv/bin/pip install pytest boto3 beautifulsoup4 "moto<5.0" awscli zappa
+          source venv/bin/activate
+          python -m pip install --upgrade pip wheel
+          pip install "setuptools<58.0.0"
+          pip install -r requirements.txt
+          pip install "moto<5.0"
+          pip install awscli zappa
+          pip install pytest requests-mock
 
-      - name: Configurar PYTHONPATH
-        run: echo "PYTHONPATH=$(pwd)" >> $GITHUB_ENV
+      - name: Run unit tests with Pytest
+        run: |
+          source venv/bin/activate
+          PYTHONPATH=$(pwd) pytest test/
 
-      - name: Configurar credenciales de AWS
+      - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -54,61 +43,33 @@ jobs:
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: us-east-1
 
-      - name: Verificar estructura de archivos
-        run: ls -R
-
-      #- name: Ejecutar pruebas con pytest
-        #run: venv/bin/pytest Tests/
-
-  deploy:
-    name: Despliegue en AWS con Zappa
-    runs-on: ubuntu-latest
-    #needs: test
-    steps:
-      - name: Checkout del código
-        uses: actions/checkout@v3
-
-      - name: Configurar Python
-        uses: actions/setup-python@v3
-        with:
-          python-version: '3.9'
-
-      - name: Instalar dependencias y configurar entorno virtual
+      - name: List S3 buckets (for verification)
         run: |
-          python -m venv venv
-          venv/bin/pip install --upgrade pip wheel
-          venv/bin/pip install "setuptools<58.0.0"
-          venv/bin/pip install -r requirements.txt
-          venv/bin/pip install boto3 beautifulsoup4 awscli zappa
+          source venv/bin/activate
+          aws s3 ls
 
-      - name: Configurar credenciales de AWS
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
-          aws-region: us-east-1
-
-      - name: Verificar conexión con AWS S3
-        run: venv/bin/aws s3 ls
-
-      - name: Deploy with Zappa
+      # Despliegue con Zappa del módulo scraper
+      - name: Deploy scraper with Zappa
         run: |
-        
-          source venv/bin/activate  # Activar entorno virtual
+          source venv/bin/activate
+          cd scraper
+          zappa update devScraper
+
+      - name: Check scraper Zappa status
+        run: |
+          source venv/bin/activate
+          cd scraper
+          zappa status devScraper
+
+      # Despliegue con Zappa del módulo parser
+      - name: Deploy parser with Zappa
+        run: |
+          source venv/bin/activate
           cd parser
-          ls  # Verificar archivos dentro de Parsing
-          
-          if zappa status devParser || true; then
-            zappa update devParser
-          else
-            zappa deploy devParser
-          fi
-        
+          zappa update devParser
 
-      # 🔹 Paso 7: Verificar despliegue
-      - name: Check Zappa Status
+      - name: Check parser Zappa status
         run: |
-          source venv/bin/activate  # Activarlo
+          source venv/bin/activate
           cd parser
           zappa status devParser
