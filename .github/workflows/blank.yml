@@ -12,13 +12,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      # 🧾 Clonar repositorio
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-      - name: Set up Python
+      # 🐍 Configurar Python
+      - name: Set up Python 3.10
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
 
+      # 📦 Instalar dependencias
       - name: Install dependencies
         run: |
           python -m venv venv
@@ -30,11 +34,13 @@ jobs:
           pip install awscli zappa
           pip install pytest requests-mock
 
+      # ✅ Ejecutar pruebas unitarias
       - name: Run unit tests with Pytest
         run: |
           source venv/bin/activate
           PYTHONPATH=$(pwd) pytest tests/
 
+      # 🔐 Configurar credenciales de AWS
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -43,12 +49,13 @@ jobs:
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: us-east-1
 
+      # 📂 Verificar acceso a S3
       - name: List S3 buckets (for verification)
         run: |
           source venv/bin/activate
           aws s3 ls
 
-      # Despliegue con Zappa del módulo scraper
+      # 🚀 Desplegar módulo scraper con Zappa
       - name: Deploy scraper with Zappa
         run: |
           source venv/bin/activate
@@ -61,7 +68,7 @@ jobs:
           cd scraper
           zappa status devScraper
 
-      # Despliegue con Zappa del módulo parser
+      # 🚀 Desplegar módulo parser con Zappa
       - name: Deploy parser with Zappa
         run: |
           source venv/bin/activate
