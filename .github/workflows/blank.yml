@@ -90,7 +90,7 @@ jobs:
           aws-region: us-east-1
 
       - name: Verificar conexión con AWS S3
-        run: env/bin/aws s3 ls
+        run: venv/bin/aws s3 ls
 
       - name: Deploy with Zappa
         run: |
